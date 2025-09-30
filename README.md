@@ -209,6 +209,7 @@ Training time: ~2-4 hours on GPU, ~12-24 hours on CPU.
 │       ├── training_results.csv
 │       ├── ppo_pong_step.csv
 │       └── learning_curve_step.png
+├── studies/                # References for this project
 └── README.md
 ```
 
