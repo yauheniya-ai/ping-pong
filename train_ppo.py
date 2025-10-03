@@ -15,8 +15,11 @@ import json
 import pandas as pd
 import matplotlib.pyplot as plt
 from datetime import datetime
+
 from dotenv import load_dotenv
-load_dotenv()  # so WANDB_API_KEY and others are loaded
+load_dotenv()  
+
+from db import upload_csv # after load_dotenv()
 
 plt.style.use("dark_background")
 
@@ -115,7 +118,15 @@ def compute_gae(rewards, dones, values, last_value, gamma, lam):
 # --------------
 # Training loop
 # --------------
+
 def train():
+
+    results_log = []        # for training_log incremental push
+    results_checkpoint = [] # for training_results incremental push
+    last_uploaded_idx_log = 0        # track last uploaded row for training_log
+    last_uploaded_idx_results = 0    # track last uploaded row for training_results
+    last_save = 0                   # track last checkpoint step
+
     valid_actions = [0, 1, 2, 3, 4, 5]
     num_actions = len(valid_actions)
 
@@ -136,6 +147,7 @@ def train():
     ep_len = 0
     total_steps = 0
     start_time = time.time()
+    best_ep_return = -float("inf")  # best single episode so far
 
     # timestamped results folder
     run_id = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -146,10 +158,13 @@ def train():
     with open(os.path.join(run_dir, "config.json"), "w") as f:
         json.dump(CONFIG, f, indent=4)
 
-    # results storage
-    results = []
-    last_save = 0  # track last checkpoint step
-    best_ep_return = -float("inf")  # best single episode so far
+
+    # --- Upload config to NeonDB as key-value ---
+    config_kv = pd.DataFrame(list(CONFIG.items()), columns=["key", "value"])
+    config_csv_path = os.path.join(run_dir, "config_kv.csv")
+    config_kv.to_csv(config_csv_path, index=False)
+    upload_csv(run_name=run_id, table_name="config_kv", csv_path=config_csv_path)
+    print(f"[INFO] Config uploaded to NeonDB for run {run_id}")
 
     # warm reset
     o, info = env.reset()
@@ -160,6 +175,7 @@ def train():
     while total_steps < total_timesteps:
         mb_states, mb_actions, mb_logprobs, mb_rewards, mb_dones, mb_values = [], [], [], [], [], []
 
+        # --- interact with environment ---
         for step in range(n_steps):
             logits, value = model(obs[None], training=False)
             logits = logits.numpy()[0]
@@ -190,13 +206,12 @@ def train():
                 ep_returns.append(ep_reward_acc)
                 ep_lens.append(ep_len)
 
-                # check for new best episode
+                # --- check best episode ---
                 if ep_reward_acc > best_ep_return:
                     best_ep_return = ep_reward_acc
                     best_model_path = os.path.join(run_dir, "best.keras")
                     model.save(best_model_path)
 
-                    # save best info
                     best_info = {
                         "episode": len(ep_returns),
                         "steps": total_steps,
@@ -204,7 +219,7 @@ def train():
                     }
                     best_csv = os.path.join(run_dir, "best_episode_results.csv")
                     pd.DataFrame([best_info]).to_csv(best_csv, index=False)
-
+                    upload_csv(run_name=run_id, table_name="best_episode_results", csv_path=best_csv)
                     print(f"[Checkpoint] New BEST model (episode={len(ep_returns)}, reward={ep_reward_acc:.2f})")
 
                 o, info = env.reset()
@@ -216,10 +231,9 @@ def train():
             if total_steps >= total_timesteps:
                 break
 
-        # bootstrap value
+        # --- compute returns and advantages ---
         _, last_value = model(obs[None], training=False)
         last_value = float(last_value.numpy()[0, 0])
-
         mb_states = np.asarray(mb_states, dtype=np.float32)
         mb_actions = np.asarray(mb_actions, dtype=np.int32)
         mb_logprobs = np.asarray(mb_logprobs, dtype=np.float32)
@@ -256,9 +270,7 @@ def train():
                     policy_loss = -tf.reduce_mean(tf.minimum(unclipped, clipped))
 
                     value_loss = tf.reduce_mean((returns_b - values_b) ** 2) * CONFIG["value_coef"]
-
-                    probs_b = tf.nn.softmax(logits_b)
-                    entropy = -tf.reduce_mean(tf.reduce_sum(probs_b * tf.nn.log_softmax(logits_b), axis=1))
+                    entropy = -tf.reduce_mean(tf.reduce_sum(tf.nn.softmax(logits_b) * tf.nn.log_softmax(logits_b), axis=1))
                     entropy_loss = -CONFIG["entropy_coef"] * entropy
 
                     total_loss = policy_loss + value_loss + entropy_loss
@@ -267,45 +279,53 @@ def train():
                 grads, _ = tf.clip_by_global_norm(grads, CONFIG["max_grad_norm"])
                 optimizer.apply_gradients(zip(grads, model.trainable_variables))
 
-        # --- logging ---
+        # --- logging for dashboard ---
         elapsed = time.time() - start_time
         avg_return = float(np.mean(ep_returns[-50:])) if ep_returns else 0.0
-        print(
-            f"Steps {total_steps}/{total_timesteps} | updates {(total_steps // n_steps)} "
-            f"| avg_return(last50) {avg_return:.2f} | elapsed {elapsed/60:.2f}min"
-        )
+        print(f"Steps {total_steps}/{total_timesteps} | updates {(total_steps // n_steps)} "
+              f"| avg_return(last50) {avg_return:.2f} | elapsed {elapsed/60:.2f}min")
 
-        # log to wandb
         wandb.log({
             "steps": total_steps,
             "avg_return_last50": avg_return,
             "elapsed_min": elapsed / 60
         })
 
-        # logging for the fastapi dashboard 
+        # --- update training_log ---
         log_entry = {
             "steps": total_steps,
             "avg_return_last50": round(avg_return, 1),
             "elapsed_min": round(elapsed / 60, 1),
         }
-        results.append(log_entry)
-
-        # write incremental log for frontend live chart
-        log_df = pd.DataFrame(results)
+        results_log.append(log_entry)
+        log_df = pd.DataFrame(results_log)
         log_path = os.path.join(run_dir, "training_log.csv")
         log_df.to_csv(log_path, index=False)
 
+        new_log_rows = log_df.iloc[last_uploaded_idx_log:]
+        if not new_log_rows.empty:
+            temp_csv = os.path.join(run_dir, "temp_training_log.csv")
+            new_log_rows.to_csv(temp_csv, index=False)
+            upload_csv(run_name=run_id, table_name="training_log", csv_path=temp_csv)
+            last_uploaded_idx_log = len(log_df)
 
-        # --- checkpointing (last only, best handled per episode) ---
+        # --- checkpointing and training_results ---
         if total_steps - last_save >= CONFIG["save_interval"]:
-            results.append({"steps": total_steps, "avg_return": avg_return})
-            df = pd.DataFrame(results)
-            csv_path = os.path.join(run_dir, "training_results.csv")
-            df.to_csv(csv_path, index=False)
+            checkpoint_entry = {"steps": total_steps, "avg_return": avg_return}
+            results_checkpoint.append(checkpoint_entry)
+            df_results = pd.DataFrame(results_checkpoint)
+            csv_path_results = os.path.join(run_dir, "training_results.csv")
+            df_results.to_csv(csv_path_results, index=False)
 
-            # plot learning curve
+            new_results_rows = df_results.iloc[last_uploaded_idx_results:]
+            if not new_results_rows.empty:
+                temp_csv_results = os.path.join(run_dir, "temp_training_results.csv")
+                new_results_rows.to_csv(temp_csv_results, index=False)
+                upload_csv(run_name=run_id, table_name="training_results", csv_path=temp_csv_results)
+                last_uploaded_idx_results = len(df_results)
+
             plt.figure()
-            plt.plot(df["steps"], df["avg_return"], marker="o")
+            plt.plot(df_results["steps"], df_results["avg_return"], marker="o")
             plt.xlabel("Steps")
             plt.ylabel("Average Return (last 50 eps)")
             plt.title("PPO Pong Learning Curve")
@@ -313,13 +333,12 @@ def train():
             plt.savefig(os.path.join(run_dir, "learning_curve.png"))
             plt.close()
 
-            # save "last" model in run folder
             last_model_path = os.path.join(run_dir, "last.keras")
             model.save(last_model_path)
             print(f"[Checkpoint] Last model saved at {total_steps} steps")
             last_save = total_steps
 
-    # --- final save ---
+    # --- final save after training ---
     final_path = os.path.join(run_dir, "last.keras")
     model.save(final_path)
     env.close()
@@ -372,4 +391,4 @@ def evaluate(model_path=None, episodes=7, render=True):
 if __name__ == "__main__":
     print("Device:", CONFIG["device"])
     train()
-    evaluate("ppo_pong.keras", episodes=7, render=True)
+    evaluate()
