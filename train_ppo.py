@@ -11,6 +11,7 @@ from tensorflow.keras.optimizers import Adam
 from collections import deque
 import time
 import os
+import json
 import pandas as pd
 import matplotlib.pyplot as plt
 from datetime import datetime
@@ -26,6 +27,7 @@ plt.style.use("dark_background")
 CONFIG = {
     "env_id": "ALE/Pong-v5",
     "render_mode": "rgb_array",
+    "model": "PPO",
     "n_steps": 2048,
     "total_timesteps": 3_000_000,
     "batch_size": 64,
@@ -37,7 +39,6 @@ CONFIG = {
     "value_coef": 0.5,
     "entropy_coef": 0.01,
     "max_grad_norm": 0.5,
-    "save_path": "ppo_pong.keras",
     "log_interval": 1,
     "save_interval": 100_000,   # save plots/checkpoints every 100k steps
     "results_dir": "results",
@@ -141,6 +142,10 @@ def train():
     run_dir = os.path.join(CONFIG["results_dir"], f"run_{run_id}")
     os.makedirs(run_dir, exist_ok=True)
 
+    # save config
+    with open(os.path.join(run_dir, "config.json"), "w") as f:
+        json.dump(CONFIG, f, indent=4)
+
     # results storage
     results = []
     last_save = 0  # track last checkpoint step
@@ -190,6 +195,16 @@ def train():
                     best_ep_return = ep_reward_acc
                     best_model_path = os.path.join(run_dir, "best.keras")
                     model.save(best_model_path)
+
+                    # save best info
+                    best_info = {
+                        "episode": len(ep_returns),
+                        "steps": total_steps,
+                        "reward": ep_reward_acc
+                    }
+                    best_csv = os.path.join(run_dir, "best_episode_results.csv")
+                    pd.DataFrame([best_info]).to_csv(best_csv, index=False)
+
                     print(f"[Checkpoint] New BEST model (episode={len(ep_returns)}, reward={ep_reward_acc:.2f})")
 
                 o, info = env.reset()
@@ -259,7 +274,6 @@ def train():
             f"Steps {total_steps}/{total_timesteps} | updates {(total_steps // n_steps)} "
             f"| avg_return(last50) {avg_return:.2f} | elapsed {elapsed/60:.2f}min"
         )
-        model.save(CONFIG["save_path"])
 
         # log to wandb
         wandb.log({
@@ -267,6 +281,20 @@ def train():
             "avg_return_last50": avg_return,
             "elapsed_min": elapsed / 60
         })
+
+        # logging for the fastapi dashboard 
+        log_entry = {
+            "steps": total_steps,
+            "avg_return_last50": round(avg_return, 1),
+            "elapsed_min": round(elapsed / 60, 1),
+        }
+        results.append(log_entry)
+
+        # write incremental log for frontend live chart
+        log_df = pd.DataFrame(results)
+        log_path = os.path.join(run_dir, "training_log.csv")
+        log_df.to_csv(log_path, index=False)
+
 
         # --- checkpointing (last only, best handled per episode) ---
         if total_steps - last_save >= CONFIG["save_interval"]:
@@ -301,7 +329,15 @@ def train():
 # --------------
 # Evaluation
 # --------------
-def evaluate(model_path="ppo_pong.keras", episodes=7, render=True):
+
+RESULTS_ROOT = "results"
+def get_latest_best_model():
+    last_run = sorted([d for d in os.listdir(RESULTS_ROOT) if d.startswith("run_")])[-1]
+    return os.path.join(RESULTS_ROOT, last_run, "best.keras")
+
+def evaluate(model_path=None, episodes=7, render=True):
+    if model_path is None:
+        model_path = get_latest_best_model()
     env = make_env(render="human" if render else "rgb_array")
     model = tf.keras.models.load_model(model_path, compile=False)
 
