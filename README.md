@@ -3,7 +3,7 @@
 Deep Reinforcement Learning agent that learns to play Atari Pong using Proximal Policy Optimization (PPO). The Arcade Learning Environment (ALE) is a widely recognized framework that provides a challenging and diverse set of Atari 2600 games, enabling the development and evaluation of AI agents through interaction with raw pixel inputs, discrete actions, and game scores in a controlled emulated environment (Fig. 1). In the visualization, the orange paddle represents the built-in opponent, while the green paddle represents the trained agent.
 
 <p align="center">
-  <img src="best.gif" alt="Pong Training" width="350" />
+  <img src="./im/best.gif" alt="Pong Training" width="350" />
   <br><em>Fig. 1: Deep reinforcement learning agent<br> training on Atari Pong using PPO.</em>
 </p>
 
@@ -205,7 +205,7 @@ Training time: ~2-4 hours on GPU, ~12-24 hours on CPU.
 - `learning_curve.png` visualizes this progress, showing how the agent’s average return evolves over training steps.
 
 <p align="center">
-  <img src="learning_curve.png" alt="Pong Training" width="350" />
+  <img src="./im/learning_curve.png" alt="Pong Training" width="350" />
   <br><em>Fig. 2: PPO Training Progress.</em>
 </p>
 
