@@ -1,4 +1,5 @@
 # train_ppo.py
+import wandb
 import numpy as np
 import gymnasium as gym
 import ale_py
@@ -13,6 +14,8 @@ import os
 import pandas as pd
 import matplotlib.pyplot as plt
 from datetime import datetime
+from dotenv import load_dotenv
+load_dotenv()  # so WANDB_API_KEY and others are loaded
 
 plt.style.use("dark_background")
 
@@ -41,6 +44,12 @@ CONFIG = {
     "device": "/GPU:0" if tf.config.list_physical_devices("GPU") else "/CPU:0",
 }
 
+wandb.init(
+    project="ppo-pong",   # name of your project on W&B
+    config=CONFIG,
+    save_code=False,      # don’t upload snapshots of your code
+    settings=wandb.Settings(disable_git=True)  
+)
 
 # --------------
 # Environment utilities
@@ -135,6 +144,7 @@ def train():
     # results storage
     results = []
     last_save = 0  # track last checkpoint step
+    best_ep_return = -float("inf")  # best single episode so far
 
     # warm reset
     o, info = env.reset()
@@ -174,6 +184,14 @@ def train():
             if done:
                 ep_returns.append(ep_reward_acc)
                 ep_lens.append(ep_len)
+
+                # check for new best episode
+                if ep_reward_acc > best_ep_return:
+                    best_ep_return = ep_reward_acc
+                    best_model_path = os.path.join(run_dir, "best.keras")
+                    model.save(best_model_path)
+                    print(f"[Checkpoint] New BEST model (episode={len(ep_returns)}, reward={ep_reward_acc:.2f})")
+
                 o, info = env.reset()
                 cur_frame = preprocess_frame(o)
                 obs, stacked_frames = stack_frames(None, cur_frame, True)
@@ -243,31 +261,42 @@ def train():
         )
         model.save(CONFIG["save_path"])
 
-        # --- safe checkpointing ---
+        # log to wandb
+        wandb.log({
+            "steps": total_steps,
+            "avg_return_last50": avg_return,
+            "elapsed_min": elapsed / 60
+        })
+
+        # --- checkpointing (last only, best handled per episode) ---
         if total_steps - last_save >= CONFIG["save_interval"]:
             results.append({"steps": total_steps, "avg_return": avg_return})
             df = pd.DataFrame(results)
             csv_path = os.path.join(run_dir, "training_results.csv")
             df.to_csv(csv_path, index=False)
 
+            # plot learning curve
             plt.figure()
             plt.plot(df["steps"], df["avg_return"], marker="o")
             plt.xlabel("Steps")
             plt.ylabel("Average Return (last 50 eps)")
             plt.title("PPO Pong Learning Curve")
-            plt.grid(True)
-            plt.savefig(os.path.join(run_dir, f"learning_curve_{total_steps}.png"))
+            plt.grid(True, alpha=0.3)
+            plt.savefig(os.path.join(run_dir, "learning_curve.png"))
             plt.close()
 
-            model.save(os.path.join(run_dir, f"ppo_pong_{total_steps}.keras"))
-            print(f"[Checkpoint] Model and results saved at {total_steps} steps")
+            # save "last" model in run folder
+            last_model_path = os.path.join(run_dir, "last.keras")
+            model.save(last_model_path)
+            print(f"[Checkpoint] Last model saved at {total_steps} steps")
             last_save = total_steps
 
-    model.save(CONFIG["save_path"])
+    # --- final save ---
+    final_path = os.path.join(run_dir, "last.keras")
+    model.save(final_path)
     env.close()
-    print("Training finished. Model saved to", CONFIG["save_path"])
+    print(f"Training finished. Last model saved to {final_path}")
     print("Results saved to", run_dir)
-
 
 # --------------
 # Evaluation

@@ -3,7 +3,7 @@
 Deep Reinforcement Learning agent that learns to play Atari Pong using Proximal Policy Optimization (PPO). The Arcade Learning Environment (ALE) is a widely recognized framework that provides a challenging and diverse set of Atari 2600 games, enabling the development and evaluation of AI agents through interaction with raw pixel inputs, discrete actions, and game scores in a controlled emulated environment (Fig. 1).
 
 <p align="center">
-  <img src="Screenshot.png" alt="Pong Training" width="350" />
+  <img src="best.gif" alt="Pong Training" width="350" />
   <br><em>Fig. 1: Deep reinforcement learning agent<br> training on Atari Pong using PPO.</em>
 </p>
 
@@ -111,12 +111,6 @@ Where c₁ = 0.5 (value coefficient) and c₂ = 0.01 (entropy coefficient).
 3. **Simple**: Easy to implement and tune 
 4. **Effective**: Achieves state-of-the-art results on many tasks
 
-### References
-
-- Mnih, V., et al. (2013). *Playing Atari with Deep Reinforcement Learning*. arXiv:1312.5602
-- Schulman, J., Wolski, F., Dhariwal, P., Radford, A., & Klimov, O. (2017). *Proximal Policy Optimization Algorithms*. arXiv:1707.06347
-- Schulman, J., Moritz, P., Levine, S., Jordan, M., & Abbeel, P. (2018). *High-Dimensional Continuous Control Using Generalized Advantage Estimation*. arXiv:1506.02438
-
 ---
 
 ## Project Overview
@@ -152,14 +146,6 @@ Results are saved to `results/run_<timestamp>/` including:
 - Training curves (PNG)
 - Performance metrics (CSV)
 - Model checkpoints (Keras)
-
-### Evaluation
-
-After training, the script automatically evaluates the model for 7 episodes with rendering enabled. To evaluate separately:
-
-```python
-python -c "import train_ppo; train_ppo.evaluate('ppo_pong.keras', episodes=7, render=True)"
-```
 
 
 ## Architecture
@@ -202,15 +188,31 @@ Training time: ~2-4 hours on GPU, ~12-24 hours on CPU.
 ```
 .
 ├── train_ppo.py            # Main training script
-├── ppo_pong.keras          # Saved latest model
 ├── requirements.txt        # Dependenices
 ├── results/
 │   └── run_YYYYMMDD_HHMMSS/
-│       ├── training_results.csv
-│       ├── ppo_pong_step.csv
-│       └── learning_curve_step.png
+│       ├── best.keras              # Model checkpoint at highest return
+│       ├── last.keras              # Model checkpoint at last save interval
+│       ├── training_results.csv    # Logged metrics (steps, avg return) 
+│       └── learning_curve.png      # Average return vs. training steps
 ├── studies/                # References for this project
-└── README.md
+└── README.md               # This document
+```
+
+## Results
+
+- `training_results.csv` saves the logged training progress as a table with the total steps and corresponding average return values.
+- `learning_curve.png` visualizes this progress, showing how the agent’s average return evolves over training steps.
+
+<p align="center">
+  <img src="learning_curve.png" alt="Pong Training" width="350" />
+  <br><em>Fig. 2: PPO Training Progress.</em>
+</p>
+
+To test the trained PPO agent, navigate to the results of the latest run and execute the evaluate function from train_ppo.py, for example:
+
+```bash
+python -c "import train_ppo; train_ppo.evaluate('results/run_20251001_235934/best.keras')"
 ```
 
 ## Troubleshooting
@@ -228,12 +230,16 @@ Training time: ~2-4 hours on GPU, ~12-24 hours on CPU.
 - Reduce `n_steps` or `batch_size`
 - Use mixed precision training
 
-## License
-
-MIT License - feel free to use and modify for your projects.
-
 ## Acknowledgments
 
 - OpenAI Gym/Gymnasium for the Atari environment
-- Stable-Baselines3 for PPO implementation inspiration
-- Original PPO paper authors
+
+## References
+
+- Mnih, V., et al. (2013). *Playing Atari with Deep Reinforcement Learning*. [arXiv:1312.5602](https://arxiv.org/abs/1312.5602)
+- Schulman, J., Wolski, F., Dhariwal, P., Radford, A., & Klimov, O. (2017). *Proximal Policy Optimization Algorithms*. [arXiv:1707.06347](https://arxiv.org/abs/1707.06347)
+- Schulman, J., Moritz, P., Levine, S., Jordan, M., & Abbeel, P. (2018). *High-Dimensional Continuous Control Using Generalized Advantage Estimation*. [arXiv:1506.02438](https://arxiv.org/abs/1506.02438)
+
+## License
+
+MIT
