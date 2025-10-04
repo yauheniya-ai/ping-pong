@@ -188,13 +188,17 @@ Training time: ~2-4 hours on GPU, ~12-24 hours on CPU.
 ```
 .
 ├── train_ppo.py            # Main training script
+├── db.py                   # NeonDB upload setup
 ├── requirements.txt        # Dependenices
 ├── results/
 │   └── run_YYYYMMDD_HHMMSS/
-│       ├── best.keras              # Model checkpoint at highest return
-│       ├── last.keras              # Model checkpoint at last save interval
-│       ├── training_results.csv    # Logged metrics (steps, avg return) 
-│       └── learning_curve.png      # Average return vs. training steps
+│       ├── best.keras                  # Model checkpoint at highest return
+│       ├── last.keras                  # Model checkpoint at last save interval
+│       ├── best_episode_results.csv    # Highest reward so far in an episode
+│       ├── training_results.csv        # Log ∅ return every 100 000 steps 
+│       ├── training_log.csv            # Log ∅ return, elapsed time every 2048 steps 
+│       ├── config_kv.csv               # configuration key-value pair
+│       └── learning_curve.png          # Plot ∅ return vs. training steps
 ├── studies/                # References for this project
 └── README.md               # This document
 ```
@@ -209,10 +213,12 @@ Training time: ~2-4 hours on GPU, ~12-24 hours on CPU.
   <br><em>Fig. 2: PPO Training Progress.</em>
 </p>
 
+## Evaluation
+
 To test the trained PPO agent, navigate to the results of the latest run and execute the evaluate function from train_ppo.py, for example:
 
 ```bash
-python -c "import train_ppo; train_ppo.evaluate('results/run_20251001_235934/best.keras')"
+python -c "import train_ppo; train_ppo.evaluate('results/run_20251004_002148/best.keras')"
 ```
 
 ## Troubleshooting
