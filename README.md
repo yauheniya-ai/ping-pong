@@ -87,7 +87,7 @@ Results are saved to `results/run_<timestamp>/` including:
 
 - `config.json` specifies the configuration.
 - `training_results.csv` saves the logged training progress as a table with the total steps and corresponding average return values.
-- `learning_curve.png` visualizes this progress, showing how the agent’s average return evolves over training steps.
+- `learning_curve.png` visualizes this progress, showing how the agent’s average return evolves over training steps (Fig. 2).
 - `last.keras` and `best.keras` model checkpoints
 
 <p align="center">
@@ -105,7 +105,7 @@ python -c "import train_ppo; train_ppo.evaluate('results/run_20251004_002148/bes
 
 ## Monitoring
 
-Training RL models for over 3 million steps takes several hours to days, making remote monitoring of progress essential. For this project, I have set up [Weights & Biases (wandb)](https://wandb.ai) monitoring initially, and later implemented custom monitoring using NeonDB and [Render](https://rl-dashboard-frontend.onrender.com).
+Training RL models for over 3 million steps takes several hours to days, making remote monitoring of progress essential. For this project, I have set up [Weights & Biases (wandb)](https://wandb.ai) monitoring initially, and later implemented [custom monitoring](https://rl-dashboard-frontend.onrender.com) using NeonDB and Render (Fig. 3).
 
 <p align="center">
   <img src="./im/NeonDB_Render.png" alt="Remote Monitoring" width="350" />
