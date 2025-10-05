@@ -35,7 +35,13 @@ This project implements and compares various reinforcement learning agents that 
 pip install -r requirements.txt
 ```
 
+## Environment Setup
+
+Rename `.env.example` to `.env` and update the environment variables before running the training scripts.
+
 ## Usage
+
+Currently implemented algorithms include Deep Q-Network (DQN), Proximal Policy Optimization (PPO), and Soft Actor-Critic (SAC).
 
 ```bash
 python train_dqn.py
@@ -85,6 +91,19 @@ Input (80x80x4)
   → Policy Head: Dense(6) [action logits]
   → Value Head: Dense(1) [state value]
 ```
+
+## Action Space 
+
+`valid_actions = [0, 1, 2, 3, 4, 5]`  
+Each action corresponds to a paddle move in the *ALE/Pong-v5* environment:  
+
+- 0 → NOOP
+- 1 → FIRE
+- 2 → RIGHT
+- 3 → LEFT
+- 4 → RIGHTFIRE
+- 5 → LEFTFIRE  
+
 
 ## Results
 
