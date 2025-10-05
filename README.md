@@ -37,59 +37,17 @@ pip install -r requirements.txt
 
 ## Usage
 
-### Training
+```bash
+python train_dqn.py
+```
 
 ```bash
 python train_ppo.py
 ```
 
-Training parameters:
-- **Total timesteps**: 3,000,000
-- **Steps per update**: 2,048
-- **Batch size**: 64
-- **Update epochs**: 8
-- **Learning rate**: 2.5e-4
-
-Results are saved to `results/run_<timestamp>/` including:
-- Training curves (PNG)
-- Performance metrics (CSV)
-- Model checkpoints (Keras)
-
-
-## Architecture
-
-### Neural Network
+```bash
+python train_sac.py
 ```
-Input (80x80x4) 
-  → Conv2D(32, 8x8, stride=4) + ReLU
-  → Conv2D(64, 4x4, stride=2) + ReLU  
-  → Conv2D(64, 3x3, stride=1) + ReLU
-  → Flatten
-  → Dense(512) + ReLU
-  → Policy Head: Dense(6) [action logits]
-  → Value Head: Dense(1) [state value]
-```
-
-### Hyperparameters
-
-| Parameter | Value | Description |
-|-----------|-------|-------------|
-| γ (gamma) | 0.99 | Discount factor |
-| λ (lambda) | 0.95 | GAE parameter |
-| ε (epsilon) | 0.2 | PPO clip ratio |
-| Learning rate | 2.5e-4 | Adam optimizer |
-| Value coef | 0.5 | Value loss weight |
-| Entropy coef | 0.01 | Exploration bonus |
-| Max grad norm | 0.5 | Gradient clipping |
-
-## Expected Results
-
-With proper training, the agent should:
-- Reach positive average rewards (~5-15) after ~500k steps
-- Achieve competitive play (winning most games) by 1-2M steps
-- Final performance: 15-21 average reward over 50 episodes
-
-Training time: ~2-4 hours on GPU, ~12-24 hours on CPU.
 
 ## File Structure
 
@@ -111,10 +69,26 @@ Training time: ~2-4 hours on GPU, ~12-24 hours on CPU.
 └── README.md               # This document
 ```
 
+## Neural Network
+```
+Input (80x80x4) 
+  → Conv2D(32, 8x8, stride=4) + ReLU
+  → Conv2D(64, 4x4, stride=2) + ReLU  
+  → Conv2D(64, 3x3, stride=1) + ReLU
+  → Flatten
+  → Dense(512) + ReLU
+  → Policy Head: Dense(6) [action logits]
+  → Value Head: Dense(1) [state value]
+```
+
 ## Results
 
+Results are saved to `results/run_<timestamp>/` including:
+
+- `config.json` specifies the configuration.
 - `training_results.csv` saves the logged training progress as a table with the total steps and corresponding average return values.
 - `learning_curve.png` visualizes this progress, showing how the agent’s average return evolves over training steps.
+- `last.keras` and `best.keras` model checkpoints
 
 <p align="center">
   <img src="./im/learning_curve.png" alt="Pong Training" width="350" />
@@ -123,7 +97,7 @@ Training time: ~2-4 hours on GPU, ~12-24 hours on CPU.
 
 ## Evaluation
 
-To test the trained PPO agent, navigate to the results of the latest run and execute the evaluate function from train_ppo.py, for example:
+To test the trained PPO agent, navigate to the results of the latest run and execute the evaluate function, for example:
 
 ```bash
 python -c "import train_ppo; train_ppo.evaluate('results/run_20251004_002148/best.keras')"
