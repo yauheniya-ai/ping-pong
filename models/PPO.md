@@ -102,3 +102,10 @@ Where c₁ = 0.5 (value coefficient) and c₂ = 0.01 (entropy coefficient).
 3. **Simple**: Easy to implement and tune 
 4. **Effective**: Achieves state-of-the-art results on many tasks
 
+## References
+
+- Mnih, V., et al. (2013). *Playing Atari with Deep Reinforcement Learning*. [arXiv:1312.5602](https://arxiv.org/abs/1312.5602)
+
+- Schulman, J., Wolski, F., Dhariwal, P., Radford, A., & Klimov, O. (2017). *Proximal Policy Optimization Algorithms*. [arXiv:1707.06347](https://arxiv.org/abs/1707.06347)
+
+- Schulman, J., Moritz, P., Levine, S., Jordan, M., & Abbeel, P. (2018). *High-Dimensional Continuous Control Using Generalized Advantage Estimation*. [arXiv:1506.02438](https://arxiv.org/abs/1506.02438)

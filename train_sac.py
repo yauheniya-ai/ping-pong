@@ -6,7 +6,7 @@ import ale_py
 from PIL import Image
 import tensorflow as tf
 from tensorflow.keras import Model
-from tensorflow.keras.layers import Input, Dense, Flatten, Conv2D, Concatenate
+from tensorflow.keras.layers import Input, Dense, Flatten, Conv2D
 from tensorflow.keras.optimizers import Adam
 from collections import deque
 import time
@@ -92,7 +92,8 @@ def create_actor(num_actions):
     x = Conv2D(64, 3, strides=1, activation="relu")(x)
     x = Flatten()(x)
     x = Dense(512, activation="relu")(x)
-    logits = Dense(num_actions, activation=None)(x)
+    logits = Dense(num_actions, activation=None, 
+                   kernel_initializer='glorot_uniform')(x)
     return Model(inp, logits)
 
 
@@ -210,14 +211,17 @@ def train():
     state, stacked_frames = stack_frames(None, cur_frame, True)
 
     while total_steps < total_timesteps:
-        # Select action
+        # Select action with numerical stability
         if total_steps < CONFIG["learning_starts"]:
             # Random exploration
             action_idx = np.random.randint(num_actions)
         else:
             # Sample from policy
             logits = actor(state[None], training=False)
+            logits = tf.clip_by_value(logits, -20, 20)  # Prevent extreme values
             probs = tf.nn.softmax(logits).numpy()[0]
+            probs = np.clip(probs, 1e-8, 1.0)  # Ensure no zeros
+            probs = probs / probs.sum()  # Renormalize
             action_idx = np.random.choice(num_actions, p=probs)
         
         action = valid_actions[action_idx]
@@ -253,8 +257,9 @@ def train():
                 q1_pred = tf.reduce_sum(q1_values * tf.one_hot(actions_b, num_actions), axis=1)
                 q2_pred = tf.reduce_sum(q2_values * tf.one_hot(actions_b, num_actions), axis=1)
                 
-                # Target Q-values
+                # Target Q-values with numerical stability
                 next_logits = actor(next_states_b, training=False)
+                next_logits = tf.clip_by_value(next_logits, -20, 20)
                 next_probs = tf.nn.softmax(next_logits)
                 next_log_probs = tf.nn.log_softmax(next_logits)
                 
@@ -266,12 +271,15 @@ def train():
                 next_v = tf.reduce_sum(next_probs * (next_q - alpha * next_log_probs), axis=1)
                 
                 target_q = rewards_b + CONFIG["gamma"] * (1 - dones_b.astype(np.float32)) * next_v
+                target_q = tf.stop_gradient(target_q)
                 
                 critic1_loss = tf.reduce_mean((q1_pred - target_q) ** 2)
                 critic2_loss = tf.reduce_mean((q2_pred - target_q) ** 2)
             
             grads1 = tape.gradient(critic1_loss, critic1.trainable_variables)
             grads2 = tape.gradient(critic2_loss, critic2.trainable_variables)
+            grads1, _ = tf.clip_by_global_norm(grads1, 0.5)
+            grads2, _ = tf.clip_by_global_norm(grads2, 0.5)
             critic1_optimizer.apply_gradients(zip(grads1, critic1.trainable_variables))
             critic2_optimizer.apply_gradients(zip(grads2, critic2.trainable_variables))
             del tape
@@ -279,6 +287,7 @@ def train():
             # Update actor
             with tf.GradientTape() as tape:
                 logits = actor(states_b, training=True)
+                logits = tf.clip_by_value(logits, -20, 20)
                 probs = tf.nn.softmax(logits)
                 log_probs = tf.nn.log_softmax(logits)
                 
@@ -290,11 +299,13 @@ def train():
                 actor_loss = tf.reduce_mean(tf.reduce_sum(probs * (alpha * log_probs - q_values), axis=1))
             
             actor_grads = tape.gradient(actor_loss, actor.trainable_variables)
+            actor_grads, _ = tf.clip_by_global_norm(actor_grads, 0.5)
             actor_optimizer.apply_gradients(zip(actor_grads, actor.trainable_variables))
             
             # Update temperature
             with tf.GradientTape() as tape:
                 logits = actor(states_b, training=False)
+                logits = tf.clip_by_value(logits, -20, 20)
                 probs = tf.nn.softmax(logits)
                 log_probs = tf.nn.log_softmax(logits)
                 entropy = -tf.reduce_sum(probs * log_probs, axis=1)
