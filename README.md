@@ -16,10 +16,10 @@ This project implements and compares various reinforcement learning agents that 
 
 | Abbreviation | Name                                          | Key Features                                                                                          |
 |--------------|-----------------------------------------------|-----------------------------------------------------------------------------------------------------|
-| PPO          | Proximal Policy Optimization                  | On-policy, robust and stable policy gradients, uses clipping to constrain policy updates, widely used baseline |
 | DQN          | Deep Q-Network                                | Value-based, uses CNN with Q-learning, experience replay, target networks, good for discrete action spaces |
-| A3C          | Asynchronous Advantage Actor-Critic           | Multiple agents in parallel, combines policy and value learning, improves sample efficiency and exploration |
+| PPO          | Proximal Policy Optimization                  | On-policy, robust and stable policy gradients, uses clipping to constrain policy updates, widely used baseline |
 | SAC          | Soft Actor-Critic                             | Off-policy, actor-critic method, encourages exploration via entropy maximization, works well in continuous spaces |
+| A3C          | Asynchronous Advantage Actor-Critic           | Multiple agents in parallel, combines policy and value learning, improves sample efficiency and exploration |
 | TD3          | Twin Delayed Deep Deterministic Policy Gradients | Off-policy, addresses overestimation in DDPG, uses two critics, target smoothing, suited for continuous actions |
 | DDPG         | Deep Deterministic Policy Gradient            | Off-policy, suitable for continuous control, deterministic actor-critic, experience replay, requires careful tuning |
 | HER          | Hindsight Experience Replay                   | Re-labels failed experiences as successes for sparse rewards, often combined with DDPG/TD3           |
