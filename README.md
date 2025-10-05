@@ -129,6 +129,15 @@ To test the trained PPO agent, navigate to the results of the latest run and exe
 python -c "import train_ppo; train_ppo.evaluate('results/run_20251004_002148/best.keras')"
 ```
 
+## Monitoring
+
+Training RL models for over 3 million steps takes several hours to days, making remote monitoring of progress essential. For this project, I have set up [Weights & Biases (wandb)](https://wandb.ai) monitoring initially, and later implemented custom monitoring using NeonDB and [Render](https://rl-dashboard-frontend.onrender.com).
+
+<p align="center">
+  <img src="./im/NeonDB_Render.png" alt="Remote Monitoring" width="350" />
+  <br><em>Fig. 3: Remote Monitoring using NeonDB and Render.</em>
+</p>
+
 ## Troubleshooting
 
 **Training is slow**: 
