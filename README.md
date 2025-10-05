@@ -53,7 +53,9 @@ python train_sac.py
 
 ```
 .
-├── train_ppo.py            # Main training script
+├── train_dqn.py            # Training script using DQN
+├── train_ppo.py            # Training script using PPO
+├── train_sac.py            # Training script using SAC
 ├── db.py                   # NeonDB upload setup
 ├── requirements.txt        # Dependenices
 ├── results/
@@ -66,6 +68,8 @@ python train_sac.py
 │       ├── config_kv.csv               # configuration key-value pair
 │       └── learning_curve.png          # Plot ∅ return vs. training steps
 ├── studies/                # References for this project
+├── models/                 # Notes for each model (DQN, PPO, SAC, etc.)
+├── im/                     # Images for this project
 └── README.md               # This document
 ```
 
