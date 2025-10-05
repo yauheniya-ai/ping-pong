@@ -58,6 +58,7 @@ python train_sac.py
 ├── train_sac.py            # Training script using SAC
 ├── db.py                   # NeonDB upload setup
 ├── requirements.txt        # Dependenices
+├── .env.example            # Env variables for remote monitoring
 ├── results/
 │   └── run_YYYYMMDD_HHMMSS/
 │       ├── best.keras                  # Model checkpoint at highest return
