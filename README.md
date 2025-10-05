@@ -94,15 +94,11 @@ Input (80x80x4)
 
 ## Action Space 
 
-`valid_actions = [0, 1, 2, 3, 4, 5]`  
-Each action corresponds to a paddle move in the *ALE/Pong-v5* environment:  
+Each action corresponds to a paddle move in the *ALE/Pong-v5* environment, e.g. `valid_actions = [0, 1, 2, 3, 4, 5]` represent a discrete(6) set of actions → {NOOP, FIRE, RIGHT, LEFT, RIGHTFIRE, LEFTFIRE}
 
-- 0 → NOOP
-- 1 → FIRE
-- 2 → RIGHT
-- 3 → LEFT
-- 4 → RIGHTFIRE
-- 5 → LEFTFIRE  
+All Atari joystick + fire button combinations: Discrete(18)  → {NOOP, FIRE, UP, RIGHT, LEFT, DOWN, UPRIGHT, UPLEFT, DOWNRIGHT, DOWNLEFT, UPFIRE, RIGHTFIRE, LEFTFIRE, DOWNFIRE, UPRIGHTFIRE, UPLEFTFIRE, DOWNRIGHTFIRE, DOWNLEFTFIRE}
+
+*ALE/Pong-v5* does not support continuous actions, since it mimics the Atari 2600’s digital controller.
 
 
 ## Results
