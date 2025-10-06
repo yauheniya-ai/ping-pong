@@ -114,7 +114,7 @@ Results are saved to `results/run_<timestamp>/` including:
   <table style="border-collapse: collapse; border: none;">
     <tr>
       <td style="border: none; text-align: center; vertical-align: top; padding: 0 8px;">
-        <img src="./im/learning_curve.png" alt="Pong Training" width="350" /><br>
+        <img src="./im/learning_curve_ppo.png" alt="Pong Training" width="350" /><br>
         <em>Fig. 2: PPO Training Progress.</em>
       </td>
       <td style="border: none; text-align: center; vertical-align: top; padding: 0 8px;">
