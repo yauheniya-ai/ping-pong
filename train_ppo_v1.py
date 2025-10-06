@@ -15,10 +15,11 @@ import json
 import pandas as pd
 import matplotlib.pyplot as plt
 from datetime import datetime
-import sys
+
 from dotenv import load_dotenv
-load_dotenv()
-from db import upload_csv
+load_dotenv()  
+
+from db import upload_csv # after load_dotenv()
 
 plt.style.use("dark_background")
 
@@ -42,11 +43,17 @@ CONFIG = {
     "entropy_coef": 0.01,
     "max_grad_norm": 0.5,
     "log_interval": 1,
-    "save_interval": 100_000,
+    "save_interval": 100_000,   # save plots/checkpoints every 100k steps
     "results_dir": "results",
     "device": "/GPU:0" if tf.config.list_physical_devices("GPU") else "/CPU:0",
 }
 
+wandb.init(
+    project="ppo-pong",   # name of your project on W&B
+    config=CONFIG,
+    save_code=False,      # don’t upload snapshots of your code
+    settings=wandb.Settings(disable_git=True)  
+)
 
 # --------------
 # Environment utilities
@@ -111,132 +118,55 @@ def compute_gae(rewards, dones, values, last_value, gamma, lam):
 # --------------
 # Training loop
 # --------------
-def train(resume_from=None):
-    results_log = []
-    results_checkpoint = []
-    last_uploaded_idx_log = 0
-    last_uploaded_idx_results = 0
-    last_save = 0
+
+def train():
+
+    results_log = []        # for training_log incremental push
+    results_checkpoint = [] # for training_results incremental push
+    last_uploaded_idx_log = 0        # track last uploaded row for training_log
+    last_uploaded_idx_results = 0    # track last uploaded row for training_results
+    last_save = 0                   # track last checkpoint step
 
     valid_actions = [0, 1, 2, 3, 4, 5]
     num_actions = len(valid_actions)
 
     env = make_env(render=CONFIG["render_mode"])
-    
-    # Initialize or resume
-    if resume_from:
-        print(f"[RESUME] Resuming training from run: {resume_from}")
-        run_id = resume_from
-        run_dir = os.path.join(CONFIG["results_dir"], f"run_{run_id}")
-        
-        # Load config from checkpoint
-        config_path = os.path.join(run_dir, "config.json")
-        if os.path.exists(config_path):
-            with open(config_path, "r") as f:
-                loaded_config = json.load(f)
-                CONFIG.update(loaded_config)
-            print(f"[RESUME] Loaded config from {config_path}")
-        
-        # Load model
-        model_path = os.path.join(run_dir, "last.keras")
-        if os.path.exists(model_path):
-            model = tf.keras.models.load_model(model_path, compile=False)
-            print(f"[RESUME] Loaded model from {model_path}")
-        else:
-            print(f"[ERROR] Model not found at {model_path}")
-            return
-        
-        # Load training log to restore state
-        log_path = os.path.join(run_dir, "training_log.csv")
-        if os.path.exists(log_path):
-            log_df = pd.read_csv(log_path)
-            results_log = log_df.to_dict('records')
-            total_steps = int(log_df["steps"].iloc[-1])
-            elapsed_time = log_df["elapsed_min"].iloc[-1] * 60
-            start_time = time.time() - elapsed_time
-            last_uploaded_idx_log = len(results_log)
-            print(f"[RESUME] Continuing from step {total_steps} ({elapsed_time/60:.1f} min elapsed)")
-        else:
-            total_steps = 0
-            start_time = time.time()
-        
-        # Load checkpoint log
-        checkpoint_path = os.path.join(run_dir, "training_results.csv")
-        if os.path.exists(checkpoint_path):
-            checkpoint_df = pd.read_csv(checkpoint_path)
-            results_checkpoint = checkpoint_df.to_dict('records')
-            last_uploaded_idx_results = len(results_checkpoint)
-            last_save = int(checkpoint_df["steps"].iloc[-1])
-        
-        # Load episode returns for running average
-        ep_returns = []
-        if len(results_log) > 0:
-            # Approximate episode returns from log (not perfect but maintains continuity)
-            for entry in results_log[-50:]:
-                ep_returns.append(entry["avg_return_last50"])
-        
-        # Reinitialize WandB with resume
-        wandb.init(
-            project="ppo-pong",
-            #id=run_id,
-            #resume="allow",
-            config=CONFIG,
-            save_code=False,
-            settings=wandb.Settings(disable_git=True)
-        )
-    else:
-        print("[NEW] Starting new training run")
-        model = create_actor_critic(num_actions)
-        total_steps = 0
-        start_time = time.time()
-        ep_returns = []
-        
-        # New run
-        run_id = datetime.now().strftime("%Y%m%d_%H%M%S")
-        run_dir = os.path.join(CONFIG["results_dir"], f"run_{run_id}")
-        os.makedirs(run_dir, exist_ok=True)
-        
-        # Save config
-        with open(os.path.join(run_dir, "config.json"), "w") as f:
-            json.dump(CONFIG, f, indent=4)
-        
-        # Upload config to NeonDB
-        config_kv = pd.DataFrame(list(CONFIG.items()), columns=["key", "value"])
-        config_csv_path = os.path.join(run_dir, "config_kv.csv")
-        config_kv.to_csv(config_csv_path, index=False)
-        upload_csv(run_name=run_id, table_name="config_kv", csv_path=config_csv_path)
-        print(f"[INFO] Config uploaded to NeonDB for run {run_id}")
-        
-        # Initialize WandB
-        wandb.init(
-            project="ppo-pong",
-            config=CONFIG,
-            save_code=False,
-            settings=wandb.Settings(disable_git=True)
-        )
-    
-    # Recreate optimizer (optimizer state not critical for PPO)
+    model = create_actor_critic(num_actions)
     optimizer = Adam(learning_rate=CONFIG["learning_rate"], epsilon=1e-5)
-    
+
     total_timesteps = CONFIG["total_timesteps"]
     n_steps = CONFIG["n_steps"]
     batch_size = CONFIG["batch_size"]
     update_epochs = CONFIG["update_epochs"]
-    
+
+    obs = None
+    stacked_frames = None
+    ep_returns = []
     ep_lens = []
     ep_reward_acc = 0.0
     ep_len = 0
-    best_ep_return = -float("inf")
-    
-    # Load best reward if resuming
-    if resume_from:
-        best_csv = os.path.join(run_dir, "best_episode_results.csv")
-        if os.path.exists(best_csv):
-            best_df = pd.read_csv(best_csv)
-            best_ep_return = float(best_df["reward"].iloc[-1])
-            print(f"[RESUME] Best episode reward: {best_ep_return}")
+    total_steps = 0
+    start_time = time.time()
+    best_ep_return = -float("inf")  # best single episode so far
 
-    # Warm reset
+    # timestamped results folder
+    run_id = datetime.now().strftime("%Y%m%d_%H%M%S")
+    run_dir = os.path.join(CONFIG["results_dir"], f"run_{run_id}")
+    os.makedirs(run_dir, exist_ok=True)
+
+    # save config
+    with open(os.path.join(run_dir, "config.json"), "w") as f:
+        json.dump(CONFIG, f, indent=4)
+
+
+    # --- Upload config to NeonDB as key-value ---
+    config_kv = pd.DataFrame(list(CONFIG.items()), columns=["key", "value"])
+    config_csv_path = os.path.join(run_dir, "config_kv.csv")
+    config_kv.to_csv(config_csv_path, index=False)
+    upload_csv(run_name=run_id, table_name="config_kv", csv_path=config_csv_path)
+    print(f"[INFO] Config uploaded to NeonDB for run {run_id}")
+
+    # warm reset
     o, info = env.reset()
     cur_frame = preprocess_frame(o)
     state, stacked_frames = stack_frames(None, cur_frame, True)
@@ -245,7 +175,7 @@ def train(resume_from=None):
     while total_steps < total_timesteps:
         mb_states, mb_actions, mb_logprobs, mb_rewards, mb_dones, mb_values = [], [], [], [], [], []
 
-        # Interact with environment
+        # --- interact with environment ---
         for step in range(n_steps):
             logits, value = model(obs[None], training=False)
             logits = logits.numpy()[0]
@@ -276,7 +206,7 @@ def train(resume_from=None):
                 ep_returns.append(ep_reward_acc)
                 ep_lens.append(ep_len)
 
-                # Check best episode
+                # --- check best episode ---
                 if ep_reward_acc > best_ep_return:
                     best_ep_return = ep_reward_acc
                     best_model_path = os.path.join(run_dir, "best.keras")
@@ -301,7 +231,7 @@ def train(resume_from=None):
             if total_steps >= total_timesteps:
                 break
 
-        # Compute returns and advantages
+        # --- compute returns and advantages ---
         _, last_value = model(obs[None], training=False)
         last_value = float(last_value.numpy()[0, 0])
         mb_states = np.asarray(mb_states, dtype=np.float32)
@@ -349,7 +279,7 @@ def train(resume_from=None):
                 grads, _ = tf.clip_by_global_norm(grads, CONFIG["max_grad_norm"])
                 optimizer.apply_gradients(zip(grads, model.trainable_variables))
 
-        # Logging
+        # --- logging for dashboard ---
         elapsed = time.time() - start_time
         avg_return = float(np.mean(ep_returns[-50:])) if ep_returns else 0.0
         print(f"Steps {total_steps}/{total_timesteps} | updates {(total_steps // n_steps)} "
@@ -361,7 +291,7 @@ def train(resume_from=None):
             "elapsed_min": elapsed / 60
         })
 
-        # Update training_log
+        # --- update training_log ---
         log_entry = {
             "steps": total_steps,
             "avg_return_last50": round(avg_return, 1),
@@ -379,7 +309,7 @@ def train(resume_from=None):
             upload_csv(run_name=run_id, table_name="training_log", csv_path=temp_csv)
             last_uploaded_idx_log = len(log_df)
 
-        # Checkpointing
+        # --- checkpointing and training_results ---
         if total_steps - last_save >= CONFIG["save_interval"]:
             checkpoint_entry = {"steps": total_steps, "avg_return": avg_return}
             results_checkpoint.append(checkpoint_entry)
@@ -408,24 +338,21 @@ def train(resume_from=None):
             print(f"[Checkpoint] Last model saved at {total_steps} steps")
             last_save = total_steps
 
-    # Final save
+    # --- final save after training ---
     final_path = os.path.join(run_dir, "last.keras")
     model.save(final_path)
     env.close()
     print(f"Training finished. Last model saved to {final_path}")
     print("Results saved to", run_dir)
 
-
 # --------------
 # Evaluation
 # --------------
+
 RESULTS_ROOT = "results"
-
-
 def get_latest_best_model():
     last_run = sorted([d for d in os.listdir(RESULTS_ROOT) if d.startswith("run_")])[-1]
     return os.path.join(RESULTS_ROOT, last_run, "best.keras")
-
 
 def evaluate(model_path=None, episodes=7, render=True):
     if model_path is None:
@@ -463,12 +390,5 @@ def evaluate(model_path=None, episodes=7, render=True):
 
 if __name__ == "__main__":
     print("Device:", CONFIG["device"])
-    
-    # Check for resume argument
-    if len(sys.argv) > 1:
-        run_id = sys.argv[1]
-        print(f"Resuming training for run: {run_id}")
-        train(resume_from=run_id)
-    else:
-        train()
-        evaluate()
+    train()
+    evaluate()
