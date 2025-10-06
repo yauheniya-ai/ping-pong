@@ -110,18 +110,21 @@ Results are saved to `results/run_<timestamp>/` including:
 - `learning_curve.png` visualizes this progress, showing how the agent’s average return evolves over training steps (Fig. 2, Fig. 3).
 - `last.keras` and `best.keras` model checkpoints
 
-<table>
-  <tr>
-    <td>
-      <img src="./im/learning_curve.png" alt="Pong Training" width="350" /><br>
-      <em>Fig. 2: PPO Training Progress.</em>
-    </td>
-    <td>
-      <img src="./im/learning_curve_dqn.png" alt="Other Training" width="350" /><br>
-      <em>Fig. 3: DQN Training Progress.</em>
-    </td>
-  </tr>
-</table>
+<div align="center">
+  <table style="border-collapse: collapse; border: none;">
+    <tr>
+      <td style="border: none; text-align: center; vertical-align: top; padding: 0 8px;">
+        <img src="./im/learning_curve.png" alt="Pong Training" width="350" /><br>
+        <em>Fig. 2: PPO Training Progress.</em>
+      </td>
+      <td style="border: none; text-align: center; vertical-align: top; padding: 0 8px;">
+        <img src="./im/learning_curve_dqn.png" alt="Other Training" width="350" /><br>
+        <em>Fig. 3: DQN Training Progress.</em>
+      </td>
+    </tr>
+  </table>
+</div>
+
 
 
 ## Evaluation
