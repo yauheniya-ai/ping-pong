@@ -107,13 +107,22 @@ Results are saved to `results/run_<timestamp>/` including:
 
 - `config.json` specifies the configuration.
 - `training_results.csv` saves the logged training progress as a table with the total steps and corresponding average return values.
-- `learning_curve.png` visualizes this progress, showing how the agent’s average return evolves over training steps (Fig. 2).
+- `learning_curve.png` visualizes this progress, showing how the agent’s average return evolves over training steps (Fig. 2, Fig. 3).
 - `last.keras` and `best.keras` model checkpoints
 
-<p align="center">
-  <img src="./im/learning_curve.png" alt="Pong Training" width="350" />
-  <br><em>Fig. 2: PPO Training Progress.</em>
-</p>
+<table>
+  <tr>
+    <td>
+      <img src="./im/learning_curve.png" alt="Pong Training" width="350" /><br>
+      <em>Fig. 2: PPO Training Progress.</em>
+    </td>
+    <td>
+      <img src="./im/learning_curve_dqn.png" alt="Other Training" width="350" /><br>
+      <em>Fig. 3: DQN Training Progress.</em>
+    </td>
+  </tr>
+</table>
+
 
 ## Evaluation
 
@@ -125,11 +134,11 @@ python -c "import train_ppo; train_ppo.evaluate('results/run_20251004_002148/bes
 
 ## Monitoring
 
-Training RL models for over 3 million steps takes several hours to days, making remote monitoring of progress essential. For this project, I have set up [Weights & Biases (wandb)](https://wandb.ai) monitoring initially, and later implemented [custom monitoring](https://rl-dashboard-frontend.onrender.com) using NeonDB and Render (Fig. 3).
+Training RL models for over 3 million steps takes several hours to days, making remote monitoring of progress essential. For this project, I have set up [Weights & Biases (wandb)](https://wandb.ai) monitoring initially, and later implemented [custom monitoring](https://rl-dashboard-frontend.onrender.com) using NeonDB and Render (Fig. 4).
 
 <p align="center">
   <img src="./im/NeonDB_Render.png" alt="Remote Monitoring" width="350" />
-  <br><em>Fig. 3: Remote Monitoring using NeonDB and Render.</em>
+  <br><em>Fig. 4: Remote Monitoring using NeonDB and Render.</em>
 </p>
 
 ## Troubleshooting
