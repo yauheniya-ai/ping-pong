@@ -29,7 +29,19 @@ This project implements and compares various reinforcement learning agents that 
 
 
 
-## Requirements
+## Installation
+
+It’s easiest to set up the Atari environment using Anaconda (or Miniconda), which handles dependencies and system libraries for gymnasium and ale-py more reliably.
+
+```bash
+conda create -n pong python=3.10          
+conda activate pong  
+pip install tensorflow-macos tensorflow-metal
+pip install "gymnasium[atari,accept-rom-license]" ale-py autorom pillow numpy opencv-python 
+AutoROM --accept-license   
+```
+
+## Requiements
 
 ```bash
 pip install -r requirements.txt
