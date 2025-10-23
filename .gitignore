@@ -3,6 +3,8 @@ results/*
 !results/
 ppo_pong.keras
 wandb/
+scripts/demo_results/
+
 # Created by https://www.toptal.com/developers/gitignore/api/python,macos,linux,windows,visualstudiocode
 # Edit at https://www.toptal.com/developers/gitignore?templates=python,macos,linux,windows,visualstudiocode
 
