@@ -18,7 +18,7 @@ from datetime import datetime
 CONFIG = {
     "env_id": "ALE/Pong-v5",
     "render_mode": "rgb_array",
-    "total_timesteps": 20_000,     # small for demo
+    "total_timesteps": 1_000_000,     # smaller for demo
     "buffer_size": 10_000,
     "batch_size": 32,
     "learning_rate": 1e-4,
